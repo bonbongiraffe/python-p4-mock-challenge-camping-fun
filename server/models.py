@@ -25,8 +25,11 @@ class Activity(db.Model, SerializerMixin):
     difficulty = db.Column(db.Integer)
 
     # Add relationship
-    
+    signups = db.relationship('Signup', back_populates = 'activity', cascade = 'all, delete-orphan')
+    campers = association_proxy('signups','camper')
+
     # Add serialization rules
+    serialize_rules = ('-signups','-campers',)
     
     def __repr__(self):
         return f'<Activity {self.id}: {self.name}>'
@@ -40,11 +43,23 @@ class Camper(db.Model, SerializerMixin):
     age = db.Column(db.Integer)
 
     # Add relationship
+    signups = db.relationship('Signup', back_populates = 'camper', cascade = 'all, delete-orphan')
+    activities = association_proxy('signups','activity')
     
     # Add serialization rules
-    
+    serialize_rules = ('-signups','-activities',)
+
     # Add validation
-    
+    @validates ('name')
+    def validate_name( self, key, new_name ):
+        if not new_name:
+            raise ValueError("Camper must have a name.")
+        return new_name
+    @validates ('age')
+    def validate_age( self, key, new_age ):
+        if not 8 <= new_age <= 18:
+            raise ValueError("Camper age must be between 8 and 18.")
+        return new_age
     
     def __repr__(self):
         return f'<Camper {self.id}: {self.name}>'
@@ -55,12 +70,22 @@ class Signup(db.Model, SerializerMixin):
 
     id = db.Column(db.Integer, primary_key=True)
     time = db.Column(db.Integer)
+    camper_id = db.Column(db.Integer, db.ForeignKey( 'campers.id' ))
+    activity_id = db.Column(db.Integer, db.ForeignKey( 'activities.id' ))
 
     # Add relationships
+    camper = db.relationship('Camper', back_populates = 'signups')
+    activity = db.relationship('Activity', back_populates = 'signups')
     
     # Add serialization rules
-    
+    serialize_rules = ('-camper.signups','-activity.signups',)
+
     # Add validation
+    @validates ('time')
+    def validate_time( self, key, new_time ):
+        if not 0 <= new_time <= 23:
+            raise ValueError("Time must be between 0 and 23 hour (military)")
+        return new_time
     
     def __repr__(self):
         return f'<Signup {self.id}>'
